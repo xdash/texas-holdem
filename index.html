@@ -139,7 +139,8 @@
     position:relative;
   }
   .plate .pname{font-size:12.5px; letter-spacing:.06em; color:var(--ink);}
-  .plate .pname .style-tag{font-size:10px; color:var(--ink-dim); margin-left:4px;}
+  .plate .pname .style-tag{display:none; font-size:10px; color:var(--ink-dim); margin-left:4px;}
+  body.show-tags .plate .pname .style-tag{display:inline;}
   .plate .pchips{
     font-family:Didot,Georgia,serif; font-size:14.5px; color:var(--brass-hi); margin-top:1px;
   }
@@ -344,6 +345,36 @@
     100%{transform:translate(34px,38px) rotate(20deg) scale(.5); opacity:0; filter:grayscale(1);}
   }
 
+  /* ---------- 开局设置弹窗 ---------- */
+  #setup{
+    position:fixed; inset:0; z-index:60; display:none;
+    background:rgba(3,8,5,.86); backdrop-filter:blur(5px);
+    align-items:center; justify-content:center;
+  }
+  #setup.show{display:flex;}
+  #setup .box{
+    background:linear-gradient(180deg,#123527,#081b12);
+    border:1px solid var(--brass); border-radius:20px; padding:26px 30px;
+    width:min(430px,92vw); max-height:86vh; overflow-y:auto; text-align:center;
+    box-shadow:0 0 60px rgba(201,162,39,.25);
+  }
+  #setup .box .t{font-family:Didot,Georgia,"Songti SC",serif; font-size:26px; color:var(--brass-hi); letter-spacing:.15em;}
+  #setup .box .sub{font-size:11.5px; color:var(--ink-dim); margin-top:6px; letter-spacing:.06em;}
+  .setup-count{display:flex; align-items:center; justify-content:center; gap:18px; margin:18px 0 10px;}
+  .setup-count .btn{min-width:44px; padding:8px 0; font-size:18px;}
+  .cnt-show b{display:block; font-family:Didot,Georgia,serif; font-size:32px; color:var(--brass-hi); line-height:1;}
+  .cnt-show span{font-size:11px; color:var(--ink-dim); letter-spacing:.08em;}
+  .seatrow{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    padding:7px 2px; border-bottom:1px dashed rgba(201,162,39,.15);
+  }
+  .seatrow .sname{font-size:14px; color:var(--ink);}
+  .seatrow select{
+    background:#0a241a; color:var(--ink); border:1px solid var(--line); border-radius:8px;
+    padding:7px 10px; font-size:14px; font-family:inherit; max-width:150px;
+  }
+  #startBtn{margin-top:18px; width:100%; padding:13px; font-size:15px;}
+
   /* ---------- 响应式 ---------- */
   @media (max-width:960px){
     main{grid-template-columns:1fr;}
@@ -385,9 +416,26 @@
     #hintPanel{padding:14px;}
     #overlay .box{padding:32px 24px; margin:0 16px;}
     #overlay .box .t{font-size:26px;}
+    /* 7~8 人桌：进一步压缩座位（不动公共牌和你的大牌），防相邻名牌/手牌重叠 */
+    #table.crowded .seat{gap:2px;}
+    #table.crowded .plate{min-width:50px; padding:2px 5px;}
+    #table.crowded .plate .pname{font-size:9.5px;}
+    #table.crowded .plate .pchips{font-size:10.5px;}
+    #table.crowded .seat:not(#seat0) .card{width:clamp(24px,7.4vw,32px); height:clamp(34px,10.4vw,45px); border-radius:4px;}
+    #table.crowded .seat:not(#seat0) .card .cr{font-size:clamp(10px,3.2vw,13px);}
+    #table.crowded .seat:not(#seat0) .card .cs{font-size:clamp(9px,2.8vw,11px);}
+    #table.crowded .action-tag{font-size:11px; padding:1px 8px; min-height:18px;}
+    #table.crowded .betchip{min-width:38px; height:19px; font-size:10px; padding:0 6px;}
   }
-  /* 触屏：加大滑块抓手、去除点按延迟 */
-  @media (pointer:coarse){
+  /* 平板宽度（641~960px）开 7~8 人桌时的轻量压缩 */
+  @media (min-width:641px) and (max-width:960px){
+    #table.crowded .plate{min-width:72px; padding:3px 8px;}
+    #table.crowded .plate .pname{font-size:11px;}
+    #table.crowded .plate .pchips{font-size:12.5px;}
+    #table.crowded .seat:not(#seat0) .card{width:44px; height:62px;}
+    #table.crowded .action-tag{font-size:12px; padding:2px 10px;}
+  }
+  /* 触屏：加大滑块抓手、去除点按延迟 */  @media (pointer:coarse){
     #raiseSlider{height:10px;}
     #raiseSlider::-webkit-slider-thumb{width:28px; height:28px;}
     #raiseSlider::-moz-range-thumb{
@@ -417,6 +465,12 @@
       <input type="checkbox" id="hintToggle" checked>
       <span class="track"></span>
     </label>
+    <label class="switch">
+      <span>🎭 玩家类型</span>
+      <input type="checkbox" id="tagToggle">
+      <span class="track"></span>
+    </label>
+    <button class="btn" id="setupBtn">⚙️ 牌桌设置</button>
     <button class="btn" id="restartBtn">♻️ 重新开局</button>
   </div>
 </header>
@@ -454,6 +508,21 @@
     <div id="hintBody"></div>
   </aside>
 </main>
+
+<div id="setup">
+  <div class="box">
+    <div class="t">开局设置</div>
+    <div class="sub">设定 2~8 人桌，为每个对手分配风格 · 搅局=纯随机乱打 · 小白=不懂赔率的新手</div>
+    <div class="setup-count">
+      <button class="btn" id="cntMinus">−</button>
+      <div class="cnt-show"><b id="cntVal">6</b><span>人桌（含你）</span></div>
+      <button class="btn" id="cntPlus">＋</button>
+    </div>
+    <div id="seatCfg"></div>
+    <button class="btn gold" id="startBtn">开始牌局</button>
+    <button class="btn" id="setupCancel" style="margin-top:10px; width:100%; display:none;">返回牌桌</button>
+  </div>
+</div>
 
 <div id="overlay">
   <div class="box">
@@ -710,23 +779,34 @@ const Sound=(()=>{
 })();
 document.addEventListener('pointerdown',()=>Sound.unlock(),{passive:true});
 
-const AI_DEFS=[
-  {name:'老王', tag:'稳健',   loose:.30, aggr:.45},
-  {name:'阿May',tag:'松凶',   loose:.72, aggr:.82},
-  {name:'Leo', tag:'紧凶',   loose:.22, aggr:.88},
-  {name:'小雯', tag:'跟注站', loose:.78, aggr:.22},
-  {name:'老周', tag:'均衡',   loose:.45, aggr:.55},
+const AI_TYPES=[
+  {key:'solid',   label:'稳健',   loose:.30, aggr:.45},
+  {key:'lag',     label:'松凶',   loose:.72, aggr:.82},
+  {key:'tag',     label:'紧凶',   loose:.22, aggr:.88},
+  {key:'station', label:'跟注站', loose:.78, aggr:.22},
+  {key:'balanced',label:'均衡',   loose:.45, aggr:.55},
+  {key:'chaos',   label:'搅局',   chaos:true},   // 完全不看牌，纯随机行动
+  {key:'fish',    label:'小白',   fish:true},    // 不懂赔率的新手
 ];
-const SEAT_POS=[[50,90],[9,70],[9,25],[50,7],[91,25],[91,70]];
-/* 窄屏（≤640px）座位内收，避免两侧玩家名牌/手牌溢出屏幕 */
-const SEAT_POS_MOBILE=[[50,91],[14,68],[14,26],[50,8],[86,26],[86,68]];
+const AI_NAMES=['老王','阿May','Leo','小雯','老周','阿Ken','Vivi','老猫'];  // 最多 7 个 AI
+const DEFAULT_TYPES=['solid','lag','tag','station','balanced','chaos','fish'];   // 保持原人设：老王=稳健、阿May=松凶…
+let config={count:6, types:DEFAULT_TYPES.slice(0,5)};
+let tmpConfig=null;   // 设置弹窗里的暂存配置
+
+/* 座位沿椭圆参数方程分布：你在底部（θ=90°），其余均布，任意人数 2~8 通用 */
+function seatPos(i, n){
+  const m=mqMobile.matches;
+  const cx=50, cy=m?49.5:48.5, rx=m?38.5:45, ry=m?42:42.5;
+  const th=(90+360*i/n)*Math.PI/180;
+  return [cx+rx*Math.cos(th), cy+ry*Math.sin(th)];
+}
 const mqMobile=window.matchMedia('(max-width:640px)');
-const seatPos=i=>(mqMobile.matches?SEAT_POS_MOBILE:SEAT_POS)[i];
 function layoutSeats(){
   players.forEach(p=>{
     const el=$('seat'+p.seat); if(!el) return;
-    el.style.left=seatPos(p.seat)[0]+'%';
-    el.style.top =seatPos(p.seat)[1]+'%';
+    const [x,y]=seatPos(p.seat, players.length);
+    el.style.left=x+'%';
+    el.style.top =y+'%';
   });
 }
 /* Safari <14 的 MediaQueryList 只有 addListener，直接调 addEventListener 会顶层抛错毁掉整页 */
@@ -736,13 +816,16 @@ else mqMobile.addListener(layoutSeats);
 let players=[], deck=[], board=[], pot=0, button=-1;
 let currentBet=0, minRaise=BB, handNo=1;
 let heroResolver=null, actingSeat=-1, waitingNext=false, gameOver=false;
-let nextTimer=null, hintSeq=0, lastPotShown=0;
+let nextTimer=null, hintSeq=0, lastPotShown=0, gameGen=0;
 let eqCache={key:null, eq:0, win:0, tie:0, total:0};
 
 /* ---------- 初始化 ---------- */
 function makePlayers(){
   const arr=[{name:'你', tag:'', isHero:true, style:{loose:.5,aggr:.5}}];
-  for(const d of AI_DEFS) arr.push({name:d.name, tag:d.tag, isHero:false, style:{loose:d.loose, aggr:d.aggr}});
+  for(let i=0;i<config.count-1;i++){
+    const t=AI_TYPES.find(t=>t.key===config.types[i])||AI_TYPES[4];
+    arr.push({name:AI_NAMES[i], tag:t.label, isHero:false, style:{...t}});
+  }
   return arr.map((d,i)=>({
     ...d, seat:i, chips:START_CHIPS, hand:[], bet:0, totalBet:0,
     inHand:false, folded:false, allIn:false, revealed:false, won:false, lastAction:'', lastActType:'', mucking:false
@@ -751,11 +834,14 @@ function makePlayers(){
 
 function buildSeats(){
   const table=$('table');
+  table.querySelectorAll('.seat').forEach(el=>el.remove());   // 支持换桌后重建
+  table.classList.toggle('crowded', players.length>=7);
   players.forEach(p=>{
     const el=document.createElement('div');
     el.className='seat'; el.id='seat'+p.seat;
-    el.style.left=seatPos(p.seat)[0]+'%';
-    el.style.top =seatPos(p.seat)[1]+'%';
+    const [x,y]=seatPos(p.seat, players.length);
+    el.style.left=x+'%';
+    el.style.top =y+'%';
     el.innerHTML=`
       <div class="cards"></div>
       <div class="plate">
@@ -791,6 +877,7 @@ function render(){
   }
   for(const p of players){
     const seat=$('seat'+p.seat);
+    if(!seat) continue;   // 座位重建竞态兜底
     seat.classList.toggle('folded', p.inHand&&p.folded);
     seat.classList.toggle('out', p.chips<=0&&!p.inHand);
     seat.classList.toggle('acting', p.seat===actingSeat);
@@ -836,7 +923,8 @@ function log(msg, me){
 /* ---------- 动效工具 ---------- */
 function flyChip(seatIdx, amount, toPot){
   const table=$('table'), t=table.getBoundingClientRect();
-  const s=$('seat'+seatIdx).getBoundingClientRect();
+  const seatEl=$('seat'+seatIdx); if(!seatEl) return;   // 换桌后旧局残留的动画直接丢弃
+  const s=seatEl.getBoundingClientRect();
   const seatC={x:s.left+s.width/2-t.left, y:s.top+s.height/2-t.top};
   const potC={x:t.width/2, y:t.height*0.30};
   const from=toPot?seatC:potC, to=toPot?potC:seatC;
@@ -908,6 +996,52 @@ function applyAction(p, act){
 }
 
 /* ---------- AI 决策 ---------- */
+/* 搅局型：完全不看牌，纯随机行动，专搞心态 */
+function chaosDecide(p, toCall, canCheck, mkRaise){
+  const maxTotal=p.bet+p.chips;
+  if(Math.random()<0.06) return {type:'raise', total:maxTotal};  // 偶尔无脑全下
+  const roll=Math.random();
+  if(canCheck){
+    if(roll<0.55) return {type:'check'};
+    return mkRaise(currentBet + Math.max(minRaise, pot*(0.4+Math.random()*1.6)));
+  }
+  if(roll<0.18) return {type:'fold'};
+  if(roll<0.62) return {type:'call'};
+  return mkRaise(currentBet + Math.max(minRaise, pot*(0.4+Math.random()*1.8)));
+}
+
+/* 小白型：不懂赔率不看位置——啥牌都想看翻牌，中对子舍不得丢，拿好牌就激动重锤 */
+function fishDecide(p, toCall, canCheck, mkRaise){
+  const stack=p.chips;
+  if(board.length===0){
+    const c=chenScore(p.hand);
+    if(canCheck){
+      if(c>=12&&Math.random()<0.7) return mkRaise(BB*3);
+      if(Math.random()<0.04) return mkRaise(BB*(2+Math.random()*3));  // 莫名加注
+      return {type:'check'};
+    }
+    if(c>=13) return mkRaise(currentBet+Math.max(minRaise, BB*4));
+    if(c>=4||toCall<=stack*0.15) return {type:'call'};                // 几乎什么都跟
+    if(toCall<=stack*0.3&&Math.random()<0.45) return {type:'call'};
+    return {type:'fold'};
+  }
+  const cat=eval7([...p.hand,...board])[0];   // 0高牌 1一对 2两对 3三条…
+  if(canCheck){
+    if(cat>=2&&Math.random()<0.75) return mkRaise(pot*(0.5+Math.random()*0.8));
+    if(cat===1&&Math.random()<0.18) return mkRaise(pot*0.5);          // 一对也忍不住打
+    if(Math.random()<0.05) return mkRaise(pot*(0.6+Math.random()));   // 空气乱偷
+    return {type:'check'};
+  }
+  if(cat>=3) return mkRaise(currentBet+Math.max(minRaise, pot*0.8));  // 三条以上激动加注
+  if(cat>=1){                                                         // 有对子=铁跟
+    if(toCall<=stack*0.5||Math.random()<0.6) return {type:'call'};
+    return {type:'fold'};
+  }
+  // 啥都没有：小注忍不住跟，大注就怂
+  if(toCall<=Math.min(pot*0.5, stack*0.2)&&Math.random()<0.55) return {type:'call'};
+  return {type:'fold'};
+}
+
 function aiDecide(p, toCall){
   const canCheck=toCall===0;
   const maxTotal=p.bet+p.chips;
@@ -917,6 +1051,8 @@ function aiDecide(p, toCall){
     if(total<=currentBet) return canCheck?{type:'check'}:{type:'call'};
     return {type:'raise', total};
   };
+  if(p.style.chaos) return chaosDecide(p, toCall, canCheck, mkRaise);
+  if(p.style.fish)  return fishDecide(p, toCall, canCheck, mkRaise);
   const opps=players.filter(q=>q.inHand&&!q.folded&&q!==p).length;
   const {loose, aggr}=p.style;
 
@@ -979,11 +1115,12 @@ function resolveHero(act){
   r(act);
 }
 
-async function bettingRound(firstIdx){
+async function bettingRound(firstIdx, gen){
   if(players.filter(p=>p.inHand&&!p.folded&&!p.allIn).length<=1) return;
   const acted=new Set();
   let idx=firstIdx;
   while(true){
+    if(gen!==gameGen) return;   // 已换桌/重开，旧局流程立即终止
     const pending=players.filter(p=>p.inHand&&!p.folded&&!p.allIn&&(!acted.has(p.seat)||p.bet<currentBet));
     if(pending.length===0) break;
     if(survivors().length===1) break;
@@ -1001,9 +1138,11 @@ async function bettingRound(firstIdx){
       const th=$('turnHint');
       th.classList.add('waiting'); th.textContent=`${p.name} 思考中…`;
       await sleep(players[0].folded||!players[0].inHand?260:880);
+      if(gen!==gameGen){ th.classList.remove('waiting'); th.textContent=''; return; }
       act=aiDecide(p,toCall);
       th.classList.remove('waiting'); th.textContent='';
     }
+    if(gen!==gameGen) return;   // await 期间换桌/重开，本次行动作废，不得污染新局底池
     actingSeat=-1;
     const reopen=applyAction(p,act);
     if(reopen){ acted.clear(); acted.add(p.seat); }
@@ -1028,6 +1167,7 @@ function postBlind(p, amt, label){
 }
 
 async function playHand(){
+  const gen=++gameGen;   // 换桌/重开会递增 gameGen，旧局各阶段随即自毙
   waitingNext=false; $('nextBtn').classList.remove('show');
   deck=shuffle(buildDeck());
   board=[]; pot=0; currentBet=0; minRaise=BB;
@@ -1042,6 +1182,7 @@ async function playHand(){
   const bbIdx = nextInHand(sbIdx);
   postBlind(players[sbIdx], SB, '小盲');
   render(); await sleep(420);
+  if(gen!==gameGen) return;
   postBlind(players[bbIdx], BB, '大盲');
   currentBet=BB; minRaise=BB;
   for(let i=0;i<2;i++) for(const p of players) if(p.inHand) p.hand.push(deck.pop());
@@ -1049,27 +1190,34 @@ async function playHand(){
   log(`—— 第 ${handNo++} 手 · 按钮位：${players[button].name} ——`);
   render(); updateHint();
   await sleep(900);
+  if(gen!==gameGen) return;
 
   // 翻牌前
   const utg = aliveN===2 ? button : nextInHand(bbIdx);
-  await bettingRound(utg);
-  if(await maybeUncontested()) return;
+  await bettingRound(utg, gen);
+  if(gen!==gameGen) return;
+  if(await maybeUncontested(gen)) return;
   resetStreet();
 
   // 翻牌 / 转牌 / 河牌
   const STREETS=[['翻牌','FLOP',3],['转牌','TURN',1],['河牌','RIVER',1]];
   for(const [name,en,n] of STREETS){
+    if(gen!==gameGen) return;
     showBanner(name,en);
     await sleep(520);
     for(let i=0;i<n;i++){ board.push(deck.pop()); Sound.flip(); render(); await sleep(340); }
+    if(gen!==gameGen) return;
     updateHint();
     log(`【${name}】${board.map(cardStr).join('  ')}`);
     await sleep(500);
-    await bettingRound(nextInHand(button));
-    if(await maybeUncontested()) return;
+    if(gen!==gameGen) return;
+    await bettingRound(nextInHand(button), gen);
+    if(gen!==gameGen) return;
+    if(await maybeUncontested(gen)) return;
     resetStreet();
   }
-  await showdown();
+  await showdown(gen);
+  if(gen!==gameGen) return;
   endHand();
 }
 
@@ -1079,7 +1227,7 @@ function resetStreet(){
   render();
 }
 
-async function maybeUncontested(){
+async function maybeUncontested(gen){
   render();
   if(survivors().length===1){
     const w=survivors()[0];
@@ -1091,20 +1239,23 @@ async function maybeUncontested(){
     log(`🏆 ${w.isHero?'你':w.name} 赢得底池 ${fmt(won)}（其余玩家全部弃牌）`, w.isHero);
     pot=0; render();
     await sleep(1500);
+    if(gen!==gameGen) return true;   // 已换桌，别再对新局 endHand
     endHand();
     return true;
   }
   return false;
 }
 
-async function showdown(){
+async function showdown(gen){
   const contenders=survivors();
   showBanner('摊牌','SHOWDOWN');
   await sleep(1000);
+  if(gen!==gameGen) return;
   for(const p of contenders){          // 逐个亮牌
     p.revealed=true; Sound.flip(); render();
     log(`🃏 ${p.isHero?'你':p.name} 亮牌 ${p.hand.map(cardStr).join(' ')} — ${handDesc(eval7([...p.hand,...board]))}`, p.isHero);
     await sleep(p.isHero?350:750);
+    if(gen!==gameGen) return;
   }
   const pots=computePots(players);
   for(let i=0;i<pots.length;i++){
@@ -1126,6 +1277,7 @@ async function showdown(){
     log(`💰 ${pots.length>1?`边池 ${i+1} `:'底池 '}${fmt(pt.amount)} → ${wname}（${handDesc(best)}）`, winners.some(w=>w.isHero));
     render();
     await sleep(1500);
+    if(gen!==gameGen) return;   // 已换桌，不得执行下方 pot=0 清新局底池
   }
   pot=0; render();
 }
@@ -1152,11 +1304,17 @@ function showOverlay(title, desc){
 
 function resetGame(){
   clearTimeout(nextTimer);
+  heroResolver=null;                    // 旧局悬挂的「轮到你行动」promise 一并作废
+  $('actionBar').classList.remove('hero-turn');
+  $('turnHint').textContent='';
+  updateHeroControls({bet:0,chips:0},0,false);   // 禁用操作区，防旧局按钮点进新局
+  eqCache={key:null, eq:0, win:0, tie:0, total:0};
   gameOver=false; waitingNext=false; handNo=1; button=-1;
   players=makePlayers();
+  buildSeats();
   $('overlay').classList.remove('show');
   $('logBox').innerHTML='';
-  log('新牌局开始 · 盲注 10/20 · 每人 2,000 筹码');
+  log(`新牌局开始 · ${players.length} 人桌 · 盲注 10/20 · 每人 2,000 筹码`);
   playHand();
 }
 
@@ -1379,6 +1537,50 @@ $('soundToggle').onchange=e=>{
   Sound.setOn(e.target.checked);
   if(e.target.checked) Sound.ding();
 };
+$('tagToggle').onchange=e=>{
+  localStorage.setItem('poker_showtags', e.target.checked?'1':'0');
+  document.body.classList.toggle('show-tags', e.target.checked);
+};
+
+/* ---------- 开局设置 ---------- */
+function renderSeatCfg(){
+  $('cntVal').textContent=tmpConfig.count;
+  const list=$('seatCfg'); list.innerHTML='';
+  for(let i=0;i<tmpConfig.count-1;i++){
+    const row=document.createElement('div'); row.className='seatrow';
+    const nm=document.createElement('span'); nm.className='sname'; nm.textContent=AI_NAMES[i];
+    const sel=document.createElement('select');
+    for(const t of AI_TYPES){
+      const o=document.createElement('option'); o.value=t.key; o.textContent=t.label;
+      if(tmpConfig.types[i]===t.key) o.selected=true;
+      sel.appendChild(o);
+    }
+    sel.onchange=()=>{ tmpConfig.types[i]=sel.value; };
+    row.appendChild(nm); row.appendChild(sel); list.appendChild(row);
+  }
+}
+function setCount(n){
+  n=Math.max(2, Math.min(8, n));
+  while(tmpConfig.types.length<n-1) tmpConfig.types.push(DEFAULT_TYPES[tmpConfig.types.length]||'balanced');
+  tmpConfig.count=n;
+  renderSeatCfg();
+}
+function openSetup(){
+  tmpConfig={count:config.count, types:config.types.slice()};
+  renderSeatCfg();
+  $('setupCancel').style.display = players.length?'block':'none';  // 已有牌局才允许取消
+  $('setup').classList.add('show');
+}
+$('setupCancel').onclick=()=>$('setup').classList.remove('show');
+$('cntMinus').onclick=()=>setCount(tmpConfig.count-1);
+$('cntPlus').onclick=()=>setCount(tmpConfig.count+1);
+$('setupBtn').onclick=openSetup;
+$('startBtn').onclick=()=>{
+  config={count:tmpConfig.count, types:tmpConfig.types.slice(0,tmpConfig.count-1)};
+  localStorage.setItem('poker_config', JSON.stringify(config));
+  $('setup').classList.remove('show');
+  resetGame();
+};
 
 /* ---------- 启动 ---------- */
 (function init(){
@@ -1390,11 +1592,23 @@ $('soundToggle').onchange=e=>{
   const sOn=sSaved===null?true:sSaved==='1';
   $('soundToggle').checked=sOn;
   Sound.setOn(sOn);
+  const tagOn=localStorage.getItem('poker_showtags')==='1';   // 默认不显示玩家类型
+  $('tagToggle').checked=tagOn;
+  document.body.classList.toggle('show-tags', tagOn);
+  // 读取已存牌桌配置；没有则先弹设置，有则直接开桌
+  const cSaved=localStorage.getItem('poker_config');
+  if(cSaved){
+    try{
+      const c=JSON.parse(cSaved);
+      if(c&&Number.isInteger(c.count)&&c.count>=2&&c.count<=8&&Array.isArray(c.types)) config={count:c.count, types:c.types.slice(0,c.count-1)};
+    }catch(e){}
+  }
+  if(!cSaved){ openSetup(); return; }
   players=makePlayers();
   buildSeats();
   render();
-  log('欢迎来到单人牌室 · 盲注 10/20 · 每人 2,000 筹码');
-  log('对手：老王（稳健）、阿May（松凶）、Leo（紧凶）、小雯（跟注站）、老周（均衡）');
+  log(`欢迎来到单人牌室 · ${players.length} 人桌 · 盲注 10/20 · 每人 2,000 筹码`);
+  log('对手：'+players.slice(1).map(p=>p.name).join('、'));
   playHand();
 })();
 
